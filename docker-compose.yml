@@ -1,0 +1,49 @@
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:25.0.1
+    command: start-dev
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./keycloak/realm-config:/opt/keycloak/data/import
+    env_file:
+      - .env  # Riferimento al file .env
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/realms/master || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - app-network
+
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+      - "5678:5678"
+    depends_on:
+      - keycloak
+    environment:
+      - KEYCLOAK_URL=http://keycloak:8080/realms/${KEYCLOAK_REALM} # Usa la variabile d'ambiente
+      - CLIENT_ID=${KEYCLOAK_CLIENT_ID}
+      - CLIENT_SECRET=${KEYCLOAK_CLIENT_SECRET}
+    networks:
+      - app-network
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        - KEYCLOAK_REALM=${KEYCLOAK_REALM}
+        - KEYCLOAK_CLIENT_ID=${KEYCLOAK_CLIENT_ID}
+        - KEYCLOAK_CLIENT_SECRET=${KEYCLOAK_CLIENT_SECRET}
+    ports:
+      - "4200:80"
+    depends_on:
+      - backend
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
