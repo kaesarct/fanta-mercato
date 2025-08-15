@@ -1,17 +1,35 @@
 services:
   keycloak:
-    image: quay.io/keycloak/keycloak:25.0.1
-    command: start-dev
+    image: quay.io/keycloak/keycloak:26.0.0
     ports:
-      - "8080:8080"
+      - "8443:8443"
     volumes:
       - ./keycloak/realm-config:/opt/keycloak/data/import
+      - ./keycloak/https:/etc/x509/https
+      - ./keycloak/docker-entrypoint.sh:/usr/local/bin/docker-entrypoint.sh
+    entrypoint: ["sh", "/usr/local/bin/docker-entrypoint.sh"]
     env_file:
-      - .env  # Riferimento al file .env
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  postgres:
+    image: postgres:15
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    env_file:
+      - .env
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8080/realms/master || exit 1"]
-      interval: 30s
-      timeout: 10s
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
       retries: 5
     networks:
       - app-network
@@ -20,23 +38,15 @@ services:
     build: ./backend
     ports:
       - "8000:8000"
-      - "5678:5678"
     depends_on:
       - keycloak
-    environment:
-      - KEYCLOAK_URL=http://keycloak:8080/realms/${KEYCLOAK_REALM} # Usa la variabile d'ambiente
-      - CLIENT_ID=${KEYCLOAK_CLIENT_ID}
-      - CLIENT_SECRET=${KEYCLOAK_CLIENT_SECRET}
+    env_file:
+      - .env
     networks:
       - app-network
 
   frontend:
-    build:
-      context: ./frontend
-      args:
-        - KEYCLOAK_REALM=${KEYCLOAK_REALM}
-        - KEYCLOAK_CLIENT_ID=${KEYCLOAK_CLIENT_ID}
-        - KEYCLOAK_CLIENT_SECRET=${KEYCLOAK_CLIENT_SECRET}
+    build: ./frontend
     ports:
       - "4200:80"
     depends_on:
@@ -47,3 +57,6 @@ services:
 networks:
   app-network:
     driver: bridge
+
+volumes:
+  postgres_data: {}

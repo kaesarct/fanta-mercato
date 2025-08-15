@@ -2,17 +2,14 @@ FROM node:20-alpine as build
 
 WORKDIR /app
 
-# Cattura le variabili d'ambiente
-ARG KEYCLOAK_REALM
-ARG KEYCLOAK_CLIENT_ID
-ARG KEYCLOAK_CLIENT_SECRET
-
-# Il tuo processo di build Angular deve leggere queste variabili
-# (potrebbe essere necessario uno script di build personalizzato per questo)
+# Copia i file necessari per installare le dipendenze
 COPY package.json package-lock.json ./
 RUN npm install
 
+# Copia tutti gli altri file del progetto
 COPY . .
+
+# Ora che tutti i file sono presenti, esegui la build
 RUN npm run build
 
 FROM nginx:stable-alpine

@@ -1,16 +1,20 @@
 import { Component, OnInit } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
-import { OAuthService, AuthConfig } from 'angular-oauth2-oidc';
 import { HttpClient } from '@angular/common/http';
 import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
 import { CommonModule } from '@angular/common';
-import { environment } from '../enviroments/environment';
+import { environment } from '../environments/environment';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, ButtonModule, CardModule, CommonModule],
+  imports: [
+    RouterOutlet,
+    ButtonModule,
+    CardModule,
+    CommonModule
+  ],
   templateUrl: './app.component.html',
 })
 export class AppComponent implements OnInit {
@@ -18,56 +22,43 @@ export class AppComponent implements OnInit {
   username: string | null = null;
   apiResponse = '';
 
-  constructor(private oauthService: OAuthService, private http: HttpClient) {
-    this.configureOAuth();
-  }
+  constructor(private http: HttpClient) { }
 
   ngOnInit(): void {
-    this.oauthService.loadDiscoveryDocumentAndTryLogin().then(() => {
-      this.updateLoginStatus();
-    });
+    this.checkLoginStatus();
   }
 
-  private configureOAuth() {
-    const authConfig: AuthConfig = {
-      issuer: environment.keycloak.issuer,
-      redirectUri: window.location.origin,
-      clientId: environment.keycloak.clientId,
-      scope: 'openid profile email',
-      responseType: 'code',
-      dummyClientSecret: environment.keycloak.clientSecret,
-    };
-    this.oauthService.configure(authConfig);
-  }
-
-  private updateLoginStatus() {
-    this.isLoggedIn = this.oauthService.hasValidAccessToken();
-    if (this.isLoggedIn) {
-      const claims = this.oauthService.getIdentityClaims();
-      this.username = claims ? (claims as any)['name'] : 'User';
-    }
+  private checkLoginStatus(): void {
+    this.http.get(`${environment.backendUrl}/api/auth/me`, { withCredentials: true })
+      .subscribe({
+        next: (res: any) => {
+          this.isLoggedIn = true;
+          this.username = res.username;
+        },
+        error: () => {
+          this.isLoggedIn = false;
+          this.username = null;
+        }
+      });
   }
 
   login() {
-    this.oauthService.initCodeFlow();
+    window.location.href = `${environment.backendUrl}/api/auth/login`;
   }
 
   logout() {
-    this.oauthService.logOut();
-    this.updateLoginStatus();
-  }
-
-  callProtectedApi() {
-    this.http.get('http://localhost:8000/api/protected').subscribe({
-      next: (response: any) => this.apiResponse = response.message,
-      error: (err) => this.apiResponse = 'Errore: ' + err.message
-    });
-  }
-
-  callPublicApi() {
-    this.http.get('http://localhost:8000/api/public').subscribe({
-      next: (response: any) => this.apiResponse = response.message,
-      error: (err) => this.apiResponse = 'Errore: ' + err.message
-    });
+    this.http.get(`${environment.backendUrl}/api/auth/logout`, { withCredentials: true })
+      .subscribe({
+        next: () => {
+          this.isLoggedIn = false;
+          this.username = null;
+          this.apiResponse = '';
+        },
+        error: () => {
+          this.isLoggedIn = false;
+          this.username = null;
+          this.apiResponse = '';
+        }
+      });
   }
 }

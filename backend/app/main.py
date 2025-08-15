@@ -1,37 +1,72 @@
-from fastapi import FastAPI, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
-import keycloak
+from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi.middleware.cors import CORSMiddleware
+from starlette.responses import RedirectResponse
+import jwt
+from jwt import PyJWTError
+from .keycloak_auth import keycloak_openid
+from .settings import settings
 
+origins = [
+    settings.redirect_uri_frontend,
+    settings.redirect_uri_frontend.replace("https://", "http://"),
+]
 app = FastAPI()
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
-
-keycloak_openid = keycloak.KeycloakOpenID(
-    server_url="http://keycloak:8080",
-    client_id="fanta-mercato",
-    realm_name="fanta-mercato",
-    client_secret_key="Iovki9M9EeYqapNqOFzqLYSiDUhFmQzj",
-    verify=False,
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
-def get_current_user(token: str = Depends(oauth2_scheme)):
+@app.get("/api/auth/login")
+async def login(request: Request):
+    auth_url = keycloak_openid.auth_url(
+        redirect_uri=settings.redirect_uri_callback, scope="openid profile email"
+    )
+    return RedirectResponse(url=auth_url)
+
+
+@app.get("/api/auth/callback")
+async def auth_callback(code: str, request: Request):
     try:
-        keycloak_openid.decode_token(token, key=keycloak_openid.public_key())
-        return True
-    except Exception:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid authentication credentials",
-            headers={"WWW-Authenticate": "Bearer"},
+        token = keycloak_openid.token(
+            grant_type="authorization_code",
+            code=code,
+            redirect_uri=settings.redirect_uri_callback,
         )
 
+        access_token = token["access_token"]
 
-@app.get("/api/protected")
-def protected_route(user: bool = Depends(get_current_user)):
-    return {"message": "Hello from protected API!"}
+        response = RedirectResponse(url=settings.redirect_uri_frontend)
+
+        # Imposta cookie sicuro
+        response.set_cookie(
+            key=settings.access_cookie_name,
+            value=access_token,
+            httponly=True,
+            secure=True,
+            samesite="None",
+            max_age=token.get("expires_in", 3600),
+        )
+
+        return response
+
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
-@app.get("/api/public")
-def public_route():
-    return {"message": "Hello from public API!"}
+@app.get("/api/auth/me")
+def me(request: Request):
+    token = request.cookies.get(settings.access_cookie_name)
+    if not token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    try:
+        payload = jwt.decode(token, options={"verify_signature": False})
+    except jwt.PyJWTError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    return {"username": payload.get("preferred_username")}
