@@ -1,0 +1,132 @@
+<div class="p-grid p-justify-center p-nogutter">
+  <div class="p-col-12 p-text-center">
+    <h1 class="text-3xl font-bold mb-0">Nome della Lega</h1>
+    <h2 class="text-lg text-gray-400 mt-0">Presidente: Nome del Presidente</h2>
+  </div>
+</div>
+
+<div class="p-grid p-justify-center p-nogutter">
+  <!-- Sidebar con la lista dei giocatori -->
+  <div class="p-col-12 p-md-4 p-lg-3">
+    <p-card header="Giocatori Disponibili" [style]="{ 'height': '100%' }">
+      <div class="p-field">
+        <label for="search">Cerca giocatore:</label>
+        <p-inputtext id="search" type="text" [(ngModel)]="searchTerm" (ngModelChange)="filteredPlayers()"></p-inputtext>
+      </div>
+      <div class="p-field">
+        <label>Filtra per ruolo:</label>
+        <div>
+          <button *ngFor="let role of roles" pButton type="button" [label]="role"
+            (click)="setSelectedRole(role)" [class.p-button-raised]="selectedRole() === role"></button>
+          <button pButton type="button" label="Tutti" (click)="setSelectedRole(null)"
+            [class.p-button-raised]="!selectedRole()"></button>
+        </div>
+      </div>
+
+      <div class="player-list">
+        <p-panel *ngFor="let player of filteredPlayers()" [header]="player.nome" [toggleable]="true" class="player-panel">
+          <div class="p-grid p-align-center">
+            <div class="p-col">
+              <div>**Ruolo:** {{ player.ruolo }}</div>
+              <div>**Valore:** {{ player.crediti }}</div>
+            </div>
+            <div class="p-col-fixed" style="width: 100px;">
+              <button pButton type="button" label="Asta" (click)="startAuction(player)"
+                [disabled]="player.status !== 'available'"></button>
+            </div>
+          </div>
+        </p-panel>
+      </div>
+    </p-card>
+  </div>
+
+  <!-- Contenuto principale con asta e squadre -->
+  <div class="p-col-12 p-md-8 p-lg-9">
+    <!-- Sezione Asta Attuale -->
+    <p-card header="Asta in Corso" class="mb-3">
+      <div *ngIf="currentAuction(); else noAuction">
+        <h3 class="text-xl font-bold">{{ selectedPlayer()?.nome }}</h3>
+        <p>**Valore attuale:** {{ currentAuction()?.bid }} crediti</p>
+        <p>**Tempo rimanente:** {{ timeLeft() }}s</p>
+        <p>**Vincitore provvisorio:** {{ getWinnerName() }}</p>
+        <div class="p-grid p-align-center p-nogutter">
+          <div class="p-col">
+            <p-inputtext type="number" [(ngModel)]="bidInput" placeholder="La tua offerta"></p-inputtext>
+          </div>
+          <div class="p-col">
+            <button pButton type="button" label="Offri" (click)="placeBid()"></button>
+          </div>
+        </div>
+      </div>
+      <ng-template #noAuction>
+        <p>Nessuna asta in corso. Seleziona un giocatore per iniziarne una.</p>
+      </ng-template>
+    </p-card>
+
+    <!-- Card per le squadre -->
+    <div class="p-grid team-cards-grid">
+      <!-- Sostituisci "teams" con il segnale che contiene le squadre -->
+      <div *ngFor="let team of teams()" class="p-col-12 p-md-6 p-lg-4 team-card-wrapper">
+        <p-card [header]="team.name" class="team-card">
+          <div class="p-grid p-nogutter">
+            <div class="p-col-12">
+              <p>**Crediti:** {{ team.credits }}</p>
+              <p>**Giocatori:** {{ team.players.length }} / 25</p>
+            </div>
+
+            <!-- Card dei giocatori -->
+            <div class="p-col-12 mt-3">
+              <div *ngIf="team.players.length > 0">
+                <!-- Suddivisione per ruolo -->
+                <div *ngIf="getPlayersByRole('P', team).length > 0">
+                  <h4 class="role-header">Portieri</h4>
+                  <div class="p-grid p-nogutter player-grid">
+                    <div *ngFor="let player of getPlayersByRole('P', team)" class="p-col-4 player-card-wrapper">
+                      <p-card [style]="{ 'background-color': '#e0f7fa' }" class="player-card">
+                        <div class="player-info">{{ player.name }} ({{ player.value }})</div>
+                      </p-card>
+                    </div>
+                  </div>
+                </div>
+
+                <div *ngIf="getPlayersByRole('D', team).length > 0">
+                  <h4 class="role-header">Difensori</h4>
+                  <div class="p-grid p-nogutter player-grid">
+                    <div *ngFor="let player of getPlayersByRole('D', team)" class="p-col-4 player-card-wrapper">
+                      <p-card [style]="{ 'background-color': '#e8f5e9' }" class="player-card">
+                        <div class="player-info">{{ player.name }} ({{ player.value }})</div>
+                      </p-card>
+                    </div>
+                  </div>
+                </div>
+
+                <div *ngIf="getPlayersByRole('C', team).length > 0">
+                  <h4 class="role-header">Centrocampisti</h4>
+                  <div class="p-grid p-nogutter player-grid">
+                    <div *ngFor="let player of getPlayersByRole('C', team)" class="p-col-4 player-card-wrapper">
+                      <p-card [style]="{ 'background-color': '#fff3e0' }" class="player-card">
+                        <div class="player-info">{{ player.name }} ({{ player.value }})</div>
+                      </p-card>
+                    </div>
+                  </div>
+                </div>
+
+                <div *ngIf="getPlayersByRole('A', team).length > 0">
+                  <h4 class="role-header">Attaccanti</h4>
+                  <div class="p-grid p-nogutter player-grid">
+                    <div *ngFor="let player of getPlayersByRole('A', team)" class="p-col-4 player-card-wrapper">
+                      <p-card [style]="{ 'background-color': '#ffcdd2' }" class="player-card">
+                        <div class="player-info">{{ player.name }} ({{ player.value }})</div>
+                      </p-card>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <p *ngIf="team.players.length === 0">Nessun giocatore in squadra.</p>
+            </div>
+          </div>
+        </p-card>
+      </div>
+    </div>
+  </div>
+</div>

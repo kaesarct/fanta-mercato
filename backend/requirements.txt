@@ -4,3 +4,4 @@ python-keycloak
 python-jose[cryptography]
 debugpy
 PyJWT
+peewee

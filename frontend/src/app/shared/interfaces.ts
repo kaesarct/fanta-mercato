@@ -1,34 +1,28 @@
-// src/app/shared/interfaces/interfaces.ts
-
 export interface Player {
-  id: number;
-  name: string;
-  team: string;
-  role: 'P' | 'D' | 'C' | 'A';
-  value: number;
-  status: 'available' | 'in-auction' | 'acquired';
-  fantasyTeamId: number | null;
+  id: string;
+  nome: string;
+  squadra: string;
+  ruolo: string;
+  crediti: number;
+  status: 'available' | 'in-auction' | 'sold';
 }
-
 export interface FantasyTeam {
-  id: number;
+  id: string;
   name: string;
   credits: number;
-  maxCredits: { P: number; D: number; C: number; A: number };
   players: Player[];
 }
 
 export interface Auction {
   id: string;
-  player: Player;
+  player_id: string;
   bid: number;
-  winnerId: number | null;
-  startTime: number;
+  winner_team_id: string | null;
+  data_scadenza: string;
 }
 
 export interface AuctionHistoryItem {
-  player: Player;
+  playerId: string;
   bid: number;
-  winner: FantasyTeam;
-  status: string;
+  winnerTeamId: string;
 }

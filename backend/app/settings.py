@@ -1,7 +1,11 @@
 import os
 
-
 class Settings:
+    """
+    Gestisce tutte le impostazioni di configurazione dell'applicazione
+    leggendo i valori dalle variabili d'ambiente.
+    """
+
     keycloak_realm: str = os.getenv("KEYCLOAK_REALM", "tuo_realm_di_default")
     keycloak_client_id: str = os.getenv(
         "KEYCLOAK_CLIENT_ID", "tuo_client_id_di_default"
